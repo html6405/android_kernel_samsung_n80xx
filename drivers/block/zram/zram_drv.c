@@ -20,6 +20,8 @@
 #define DEBUG
 #endif
 
+#define MAX_COMP_STREAMS	2
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/bio.h>
@@ -53,7 +55,7 @@ static const char *default_compressor = "lzo";
 #define ALLOC_ERROR_LOG_RATE_MS 1000
 
 /* Module params (documentation at end) */
-static unsigned int num_devices = 1;
+static unsigned int num_devices = 4;
 
 #define ZRAM_ATTR_RO(name)						\
 static ssize_t zram_attr_##name##_show(struct device *d,		\
@@ -648,7 +650,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
 	}
 
 	zcomp_destroy(zram->comp);
-	zram->max_comp_streams = 1;
+	zram->max_comp_streams = MAX_COMP_STREAMS;
 
 	zram_meta_free(zram->meta);
 	zram->meta = NULL;
@@ -980,7 +982,7 @@ static int create_device(struct zram *zram, int device_id)
 	}
 	strlcpy(zram->compressor, default_compressor, sizeof(zram->compressor));
 	zram->meta = NULL;
-	zram->max_comp_streams = 1;
+	zram->max_comp_streams = MAX_COMP_STREAMS;
 	return 0;
 
 out_free_disk:

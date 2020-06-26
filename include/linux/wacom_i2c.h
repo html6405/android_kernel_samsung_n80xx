@@ -391,8 +391,9 @@ struct wacom_g5_platform_data {
 	void (*register_cb)(struct wacom_g5_callbacks *);
 };
 
-#define LONG_PRESS_TIME 500
-#define MIN_GEST_DIST 384
+#define SHORT_PRESS_TIME 0
+#define LONG_PRESS_TIME 1000
+#define MIN_GEST_DIST 3000
 
 /*Parameters for i2c driver*/
 struct wacom_i2c {

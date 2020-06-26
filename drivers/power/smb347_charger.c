@@ -322,8 +322,10 @@ static void smb347_set_charging_state(int enable, int charging_mode)
 			break;
 		case CABLE_TYPE_USB:
 			/* CommandB : USB5 */
-			smb347_i2c_write(chg->client, SMB347_COMMAND_B, 0x02);
-			pr_info("%s : LOW(USB5) charging enable\n", __func__);
+			//smb347_i2c_write(chg->client, SMB347_COMMAND_B, 0x02);
+			/* CommandB : High-current mode */
+            			smb347_i2c_write(chg->client, SMB347_COMMAND_B, 0x03);
+			pr_info("%s : LOW(USB5) charging enabled 1.8A by html6405\n", __func__);
 			break;
 		default:
 			/* CommandB : USB1 */

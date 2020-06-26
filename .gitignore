@@ -25,12 +25,12 @@
 modules.builtin
 *.elf
 *.bin
-*.gz
+# *.gz
 *.bz2
 *.lzma
 *.xz
 *.lzo
-*.patch
+# *.patch
 *.gcno
 
 #
@@ -46,6 +46,11 @@ modules.builtin
 /Module.symvers
 
 #
+# Debian directory (make deb-pkg)
+#
+/debian/
+
+#
 # git files that we don't want to ignore even it they are dot-files
 #
 !.gitignore
@@ -58,6 +63,7 @@ include/config
 include/linux/version.h
 include/generated
 arch/*/include/generated
+scripts/*
 
 # stgit generated dirs
 patches-*
@@ -79,3 +85,6 @@ GTAGS
 *.orig
 *~
 \#*#
+
+# Generated source files
+smd_rpc_sym.c

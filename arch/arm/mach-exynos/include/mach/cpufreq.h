@@ -14,6 +14,14 @@
  * This should be same with cpufreq_frequency_table
 */
 
+#ifdef CONFIG_MACH_T0
+#define CPUFREQ_LEVEL_END	(L19 + 1)
+
+#else
+#define CPUFREQ_LEVEL_END	(L17 + 1)
+
+#endif
+
 enum cpufreq_level_index {
 	L0, L1, L2, L3, L4,
 	L5, L6, L7, L8, L9,
@@ -64,10 +72,12 @@ enum cpufreq_lock_ID {
 	 */
 	DVFS_LOCK_ID_QOS_DMA_LATENCY,
 	DVFS_LOCK_ID_END,
+	DVFS_LOCK_ID_INCALL,
 };
 
 int exynos_cpufreq_get_level(unsigned int freq,
 			unsigned int *level);
+int exynos_cpufreq_get_level_ret(unsigned int freq);
 int exynos_find_cpufreq_level_by_volt(unsigned int arm_volt,
 			unsigned int *level);
 int exynos_cpufreq_lock(unsigned int nId,

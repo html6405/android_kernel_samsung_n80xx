@@ -29,6 +29,7 @@ AFLAGS_sleep-exynos4.o :=$(call as-instr,.arch_extension sec,-DREQUIRES_SEC=1)
 
 obj-$(CONFIG_EXYNOS5_PM)	+= pm-exynos5.o sleep-exynos5.o
 obj-$(CONFIG_CPU_FREQ)		+= cpufreq.o
+obj-$(CONFIG_ABB_CONTROL)	+= abb_control.o
 obj-$(CONFIG_EXYNOS4_CPUFREQ)  += asv.o
 ifeq ($(CONFIG_CPU_EXYNOS4210),y)
 obj-$(CONFIG_EXYNOS4_CPUFREQ)  += asv-4210.o
@@ -363,3 +364,5 @@ obj-$(CONFIG_CORESIGHT_ETM) += coresight.o coresight-etb.o coresight-tpiu.o core
 
 # for audio platform data driver
 obj-$(CONFIG_EXYNOS_SOUND_PLATFORM_DATA)	+= exynos_sound_platform_data.o
+
+obj-$(CONFIG_CHARGE_LEVEL) += charge_level.o

@@ -471,32 +471,6 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 }
 
 /*
- * For background writeback the caller does not have the sb pinned
- * before calling writeback. So make sure that we do pin it, so it doesn't
- * go away while we are writing inodes from it.
- */
-static bool pin_sb_for_writeback(struct super_block *sb)
-{
-	spin_lock(&sb_lock);
-	if (list_empty(&sb->s_instances)) {
-		spin_unlock(&sb_lock);
-		return false;
-	}
-
-	sb->s_count++;
-	spin_unlock(&sb_lock);
-
-	if (down_read_trylock(&sb->s_umount)) {
-		if (sb->s_root)
-			return true;
-		up_read(&sb->s_umount);
-	}
-
-	put_super(sb);
-	return false;
-}
-
-/*
  * Write a portion of b_io inodes which belong to @sb.
  *
  * If @only_this_sb is true, then find and write all such
@@ -595,7 +569,7 @@ void writeback_inodes_wb(struct bdi_writeback *wb,
 		struct inode *inode = wb_inode(wb->b_io.prev);
 		struct super_block *sb = inode->i_sb;
 
-		if (!pin_sb_for_writeback(sb)) {
+		if (!grab_super_passive(sb)) {
 			requeue_io(inode);
 			continue;
 		}
@@ -963,10 +937,8 @@ void wakeup_flusher_threads(long nr_pages)
 {
 	struct backing_dev_info *bdi;
 
-	if (!nr_pages) {
-		nr_pages = global_page_state(NR_FILE_DIRTY) +
-				global_page_state(NR_UNSTABLE_NFS);
-	}
+	if (!nr_pages)
+		nr_pages = get_nr_dirty_pages();
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
@@ -1083,6 +1055,8 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 			bool wakeup_bdi = false;
 			bdi = inode_to_bdi(inode);
 
+			spin_unlock(&inode->i_lock);
+			spin_lock(&inode_wb_list_lock);
 			if (bdi_cap_writeback_dirty(bdi)) {
 				WARN(!test_bit(BDI_registered, &bdi->state),
 				     "bdi-%s not registered\n", bdi->name);
@@ -1097,8 +1071,6 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 					wakeup_bdi = true;
 			}
 
-			spin_unlock(&inode->i_lock);
-			spin_lock(&inode_wb_list_lock);
 			inode->dirtied_when = jiffies;
 			list_move(&inode->i_wb_list, &bdi->wb.b_dirty);
 			spin_unlock(&inode_wb_list_lock);

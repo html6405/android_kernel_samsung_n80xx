@@ -44,6 +44,14 @@
 #if defined(CONFIG_STMPE811_ADC)
 #include <linux/stmpe811-adc.h>
 #endif
+#include "linux/charge_level.h"
+
+int ac_level 		= AC_CHARGE_LEVEL_DEFAULT;    // Set AC default charge level
+int usb_level  		= USB_CHARGE_LEVEL_DEFAULT; // Set USB default charge level
+int wireless_level	= WIRELESS_CHARGE_LEVEL_DEFAULT; // Set wireless default charge level
+char charge_info_text[30];	// Info text to be shown in config app
+int charge_info_level;		// Actual charge current, negotiated between charger and device
+unsigned int charge_info_cable_type = POWER_SUPPLY_TYPE_BATTERY;	// Actual charger type, default is none
 
 static char *supply_list[] = {
 	"battery",
@@ -1582,6 +1590,11 @@ charge_ok:
 #if defined(CONFIG_MACH_GC1)
 	pr_err("%s: Updated Cable State(%d)\n", __func__, info->cable_type);
 #endif
+
+	// store current charger type in variable to be used by other
+	// modules, like e.g. touch-to-wake
+	charge_info_cable_type = info->cable_type;
+
 	switch (info->cable_type) {
 	case POWER_SUPPLY_TYPE_BATTERY:
 		if (!info->pdata->suspend_chging)
@@ -1596,26 +1609,40 @@ charge_ok:
 		info->abstimer_state = false;
 		info->abstimer_active = false;
 		info->recharge_phase = false;
+
+		charge_info_level = 0;		
+		sprintf(charge_info_text, "No charger");
+		printk("Kernel: POWER_SUPPLY_TYPE_BATTERY\n");
 		break;
 	case POWER_SUPPLY_TYPE_MAINS:
+		charge_info_level = ac_level;
+		sprintf(charge_info_text, "AC Charger");
+		printk("Kernel: POWER_SUPPLY_TYPE_MAINS, using charge rate %d mA\n", ac_level);
+
 		if (!info->pdata->suspend_chging)
 			wake_lock(&info->charge_wake_lock);
-		battery_charge_control(info, info->pdata->chg_curr_ta,
-						info->pdata->in_curr_limit);
+		battery_charge_control(info, ac_level, ac_level);
 		break;
 	case POWER_SUPPLY_TYPE_USB:
+		charge_info_level = usb_level;
+		sprintf(charge_info_text, "USB Charger");
+		printk("Kernel: POWER_SUPPLY_TYPE_USB, using charge rate %d mA\n", usb_level);
+
 		if (!info->pdata->suspend_chging)
 			wake_lock(&info->charge_wake_lock);
-		battery_charge_control(info, info->pdata->chg_curr_usb,
-						info->pdata->chg_curr_usb);
+		battery_charge_control(info, usb_level, usb_level);
 		break;
 	case POWER_SUPPLY_TYPE_USB_CDP:
+		charge_info_level = ac_level;
+		sprintf(charge_info_text, "USB CDP Charger");
+		printk("Kernel: POWER_SUPPLY_TYPE_USB_CDP, using charge rate %d mA\n", ac_level);
+
 		if (!info->pdata->suspend_chging)
 			wake_lock(&info->charge_wake_lock);
-		battery_charge_control(info, info->pdata->chg_curr_cdp,
-						info->pdata->chg_curr_cdp);
+		battery_charge_control(info, ac_level, ac_level);
 		break;
 	case POWER_SUPPLY_TYPE_DOCK:
+		printk("Kernel: POWER_SUPPLY_TYPE_DOCK\n");
 		if (!info->pdata->suspend_chging)
 			wake_lock(&info->charge_wake_lock);
 		/* default dock prop is AC */
@@ -1623,49 +1650,63 @@ charge_ok:
 		muic_cb_typ = max77693_muic_get_charging_type();
 		switch (muic_cb_typ) {
 		case CABLE_TYPE_AUDIODOCK_MUIC:
+			charge_info_level = ac_level;
+			sprintf(charge_info_text, "Audio dock");
+			printk("Kernel: CABLE_TYPE_AUDIODOCK_MUIC, using charge rate %d mA\n", ac_level);
+
 			pr_info("%s: audio dock, %d\n",
 					__func__, DOCK_TYPE_AUDIO_CURR);
-			battery_charge_control(info,
-						DOCK_TYPE_AUDIO_CURR,
-						DOCK_TYPE_AUDIO_CURR);
+			battery_charge_control(info, ac_level, ac_level);
 			break;
 		case CABLE_TYPE_SMARTDOCK_TA_MUIC:
 			if (info->cable_sub_type == ONLINE_SUB_TYPE_SMART_OTG) {
+				charge_info_level = ac_level;
+				sprintf(charge_info_text, "Smart dock (host)");
+				printk("Kernel: CABLE_TYPE_SMARTDOCK_TA_MUIC (with host), using charge rate %d mA\n", ac_level);
+
 				pr_info("%s: smart dock ta & host, %d\n",
 					__func__, DOCK_TYPE_SMART_OTG_CURR);
-				battery_charge_control(info,
-						DOCK_TYPE_SMART_OTG_CURR,
-						DOCK_TYPE_SMART_OTG_CURR);
+				battery_charge_control(info, ac_level, ac_level);
 			} else {
+				charge_info_level = ac_level;
+				sprintf(charge_info_text, "Smart dock (no host)");
+				printk("Kernel: CABLE_TYPE_SMARTDOCK_TA_MUIC (no host), using charge rate %d mA\n", ac_level);
+
 				pr_info("%s: smart dock ta & no host, %d\n",
 					__func__, DOCK_TYPE_SMART_NOTG_CURR);
-				battery_charge_control(info,
-						DOCK_TYPE_SMART_NOTG_CURR,
-						DOCK_TYPE_SMART_NOTG_CURR);
+				battery_charge_control(info, ac_level, ac_level);
 			}
 			break;
 		case CABLE_TYPE_SMARTDOCK_USB_MUIC:
+			charge_info_level = ac_level;
+			sprintf(charge_info_text, "Smart dock USB");
+			printk("Kernel: CABLE_TYPE_SMARTDOCK_USB_MUIC, using charge rate %d mA\n", ac_level);
+
 			pr_info("%s: smart dock usb(low), %d\n",
 					__func__, DOCK_TYPE_LOW_CURR);
 			info->online_prop = ONLINE_PROP_USB;
-			battery_charge_control(info,
-						DOCK_TYPE_LOW_CURR,
-						DOCK_TYPE_LOW_CURR);
+			battery_charge_control(info, ac_level, ac_level);
 			break;
 		default:
+			charge_info_level = ac_level;
+			sprintf(charge_info_text, "Default");
+			printk("Kernel: Default, using charge rate %d mA\n", ac_level);
+
 			pr_info("%s: general dock, %d\n",
 					__func__, info->pdata->chg_curr_dock);
-		battery_charge_control(info,
-			info->pdata->chg_curr_dock,
-			info->pdata->chg_curr_dock);
+			battery_charge_control(info, ac_level, ac_level);
 			break;
 		}
 		break;
 	case POWER_SUPPLY_TYPE_WIRELESS:
+		charge_info_level = wireless_level;
+		sprintf(charge_info_text, "Wireless charger");
+		printk("Kernel: POWER_SUPPLY_TYPE_WIRELESS");
+
 		if (!info->pdata->suspend_chging)
 			wake_lock(&info->charge_wake_lock);
-		battery_charge_control(info, info->pdata->chg_curr_wpc,
-						info->pdata->chg_curr_wpc);
+		battery_charge_control(info, wireless_level,
+						wireless_level);
 		break;
 	default:
 		break;
@@ -1738,8 +1779,8 @@ monitor_finish:
 		info->prev_charge_virt_state != info->charge_virt_state ||
 		info->prev_battery_soc != info->battery_soc) {
 		/* TBD : timeout value */
-		pr_info("%s : update wakelock (%d)\n", __func__, 3 * HZ);
-		wake_lock_timeout(&info->update_wake_lock, 3 * HZ);
+		pr_info("%s: update wakelock(%d)\n", __func__, HZ);
+		wake_lock_timeout(&info->update_wake_lock, HZ);
 	}
 
 	info->prev_cable_type = info->cable_type;
@@ -1752,9 +1793,9 @@ monitor_finish:
 	if ((info->lpm_state == true) &&
 		(info->cable_type == POWER_SUPPLY_TYPE_BATTERY)) {
 		pr_info("%s: lpm with battery, maybe power off\n", __func__);
-		wake_lock_timeout(&info->monitor_wake_lock, 10 * HZ);
+		wake_lock_timeout(&info->monitor_wake_lock, 3 * HZ);
 	} else
-		wake_lock_timeout(&info->monitor_wake_lock, HZ);
+		wake_lock_timeout(&info->monitor_wake_lock, HZ / 4);
 
 	mutex_unlock(&info->mon_lock);
 
@@ -2510,6 +2551,10 @@ static struct platform_driver samsung_battery_driver = {
 
 static int __init samsung_battery_init(void)
 {
+	// initialize charge info variables
+	charge_info_level = 0;	
+	sprintf(charge_info_text, "No charger");
+
 	return platform_driver_register(&samsung_battery_driver);
 }
 
