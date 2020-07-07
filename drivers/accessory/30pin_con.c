@@ -51,11 +51,18 @@ enum dock_type {
 	DOCK_KEYBOARD,
 };
 
+   /*
+    field public static final int EXTRA_DOCK_STATE_CAR = 2; // 0x2
+    field public static final int EXTRA_DOCK_STATE_DESK = 1; // 0x1
+    field public static final int EXTRA_DOCK_STATE_HE_DESK = 4; // 0x4
+    field public static final int EXTRA_DOCK_STATE_LE_DESK = 3; // 0x3
+    field public static final int EXTRA_DOCK_STATE_UNDOCKED = 0; // 0x0
+    */
 enum uevent_dock_type {
 	UEVENT_DOCK_NONE = 0,
 	UEVENT_DOCK_DESK,
 	UEVENT_DOCK_CAR,
-	UEVENT_DOCK_KEYBOARD = 9,
+	UEVENT_DOCK_KEYBOARD = 3,
 };
 
 struct acc_con_info {
@@ -244,7 +251,7 @@ void acc_accessory_uevent(struct acc_con_info *acc, int acc_adc)
 			env_ptr = "ACCESSORY=carmount";
 			acc->current_accessory = ACCESSORY_CARMOUNT;
 #endif
-		} else if ((1800 < acc_adc) && (2350 > acc_adc)) {
+		} else if ((1600 < acc_adc) && (2350 > acc_adc)) {
 			/* 4 pole earjack, No warranty 2000 */
 			env_ptr = "ACCESSORY=lineout";
 			acc->current_accessory = ACCESSORY_LINEOUT;
@@ -421,11 +428,12 @@ static void acc_check_dock_detection(struct acc_con_info *acc)
 		{
 			ACC_CONDEV_DBG
 			("The dock proves to be a desktop dock..!");
-			switch_set_state(&acc->dock_switch, UEVENT_DOCK_DESK);
+			switch_set_state(&acc->dock_switch, UEVENT_DOCK_KEYBOARD);
 			acc->current_dock = DOCK_DESK;
 			acc->cable_type = POWER_SUPPLY_TYPE_DOCK;
 			acc->cable_sub_type = ONLINE_SUB_TYPE_DESK;
-
+		}
+/*
 #if defined(CONFIG_MHL_SII9234) || defined(CONFIG_SAMSUNG_MHL_9290)
 			mutex_lock(&acc->lock);
 			if (!acc->mhl_pwr_state) {
@@ -437,8 +445,8 @@ static void acc_check_dock_detection(struct acc_con_info *acc)
 				acc->mhl_pwr_state = true;
 			}
 			mutex_unlock(&acc->lock);
-#endif
-		}
+#endif */
+
 		acc_dock_uevent(acc, true);
 	} else {
 
@@ -636,7 +644,7 @@ static void acc_dwork_accessory_detect(struct work_struct *work)
 
 		acc_state2 = acc->pdata->get_acc_state();
 		if (acc_state2) {
-			ACC_CONDEV_DBG("Accessory detached2.");
+			ACC_CONDEV_DBG("Accessory detached.");
 			acc_accessory_uevent(acc, false);
 		} else {
 		ACC_CONDEV_DBG("Accessory attached");
@@ -737,7 +745,7 @@ static int acc_con_probe(struct platform_device *pdev)
 		pr_info("[MHL SII9234] add i2c driver\n");
 	}
 #endif
-	acc->dock_switch.name = "dock";
+	acc->dock_switch.name = "dock_keyboard";
 	retval = switch_dev_register(&acc->dock_switch);
 	if (retval < 0)
 		goto err_sw_dock;
