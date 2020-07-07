@@ -706,7 +706,7 @@ struct input_keymap_entry {
 #define KEY_PEN_RTL			0x2f3
 #define KEY_PEN_LTR			0x2f4
 #define KEY_PEN_LP			0x2f5
-
+#define KEY_PEN_SP			0x2f6
 
 #define BTN_TRIGGER_HAPPY		0x2c0
 #define BTN_TRIGGER_HAPPY1		0x2c0
